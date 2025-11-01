@@ -34,14 +34,14 @@ class SpotifyAPI {
       }
 
       const data = await response.json();
-      
+
       if (!data.access_token) {
         throw new Error('No access token received from Spotify');
       }
 
       this.accessToken = data.access_token;
       this.tokenExpiration = Date.now() + (data.expires_in * 1000) - 300000;
-      
+
       return this.accessToken!;
 
     } catch (error) {
@@ -71,7 +71,7 @@ class SpotifyAPI {
           this.tokenExpiration = null;
           return this.makeRequest<T>(endpoint, params);
         }
-        
+
         const errorText = await response.text();
         throw new Error(`Spotify API error: ${response.status} - ${errorText}`);
       }
@@ -92,13 +92,43 @@ class SpotifyAPI {
     });
   }
 
-  async searchPlaylists(query: string, limit: number = 10): Promise<any> {
+  async searchPlaylists(query: string, limit: number = 20): Promise<any> {
     return this.makeRequest('/search', {
-      q: query,
+      q: `${query}`,
       type: 'playlist',
       limit: limit.toString(),
       market: 'US'
     });
+  }
+
+  async searchPlaylistsWithFallback(genre: string, limit: number = 20): Promise<any> {
+    // Términos de búsqueda alternativos para cada género
+    const searchTerms: Record<string, string[]> = {
+      trance: ['trance', 'trance music', 'trance mix', 'uplifting trance', 'vocal trance'],
+      techno: ['techno', 'techno music', 'techno mix'],
+      house: ['house', 'house music', 'house mix'],
+      // Agrega más géneros según necesites
+    };
+
+    const terms = searchTerms[genre] || [genre];
+
+    for (const term of terms) {
+      try {
+        console.log(`🔍 Searching playlists with term: "${term}"`);
+        const response = await this.searchPlaylists(term, limit);
+
+        if (response.playlists?.items?.length > 0) {
+          console.log(`✅ Found ${response.playlists.items.length} playlists with term: "${term}"`);
+          return response;
+        }
+      } catch (error) {
+        console.warn(`⚠️ Search failed for term "${term}":`, error);
+        continue;
+      }
+    }
+
+    // Si llegamos aquí, ningún término funcionó
+    throw new Error(`No playlists found for genre "${genre}" after trying terms: ${terms.join(', ')}`);
   }
 
   async getTracksByGenre(genre: string, limit: number = 50): Promise<Track[]> {
@@ -118,11 +148,11 @@ class SpotifyAPI {
         fields: 'items(track(id,name,artists,album,popularity,duration_ms,preview_url,external_urls))',
         market: 'US'
       });
-      
+
       const tracks = response.items
         .map((item: any) => item.track)
         .filter((track: any) => track !== null);
-      
+
       return tracks;
     } catch (error) {
       console.error(`Error fetching playlist ${playlistId} tracks:`, error);

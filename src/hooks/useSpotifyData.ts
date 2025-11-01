@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type{ Track, GenreStats, Playlist } from '../types/spotify';
+import type { Track, GenreStats } from '../types/spotify';
 import { spotifyAPI } from '../services/spotifyApi';
 
 export const useSpotifyData = () => {
@@ -35,104 +35,187 @@ export const useSpotifyData = () => {
     };
   };
 
-  // Función para buscar playlists populares por género
-  const findPopularPlaylistsByGenre = async (genre: string, limit: number = 5): Promise<Playlist[]> => {
-    try {
-      console.log(`🔍 Searching popular ${genre} playlists...`);
-      
-      const response = await spotifyAPI.searchPlaylists(`${genre}`, limit);
-      
-      const playlists = response.playlists.items
-        .filter((playlist: Playlist | null) => playlist !== null)
-        .sort((a: Playlist, b: Playlist) => (b.followers?.total || 0) - (a.followers?.total || 0));
-      
-      console.log(`✅ Found ${playlists.length} ${genre} playlists:`, 
-        playlists.map(p => ({ name: p.name, followers: p.followers?.total, id: p.id }))
-      );
-      
-      return playlists;
-    } catch (error) {
-      console.error(`Error finding ${genre} playlists:`, error);
-      return [];
+  // Función mejorada para buscar playlists con términos alternativos
+  const searchPlaylistsWithFallback = async (genre: string, limit: number = 20): Promise<any> => {
+    // Términos de búsqueda alternativos para cada género
+    const searchTerms: Record<string, string[]> = {
+      techno: ['techno', 'techno music', 'techno mix', 'techno 2024'],
+      trance: ['trance', 'trance music', 'trance mix', 'uplifting trance', 'vocal trance', 'psytrance'],
+      house: ['house', 'house music', 'house mix', 'deep house'],
+    };
+
+    const terms = searchTerms[genre] || [genre];
+    
+    console.log(`🔄 Trying search terms for ${genre}:`, terms);
+
+    for (const term of terms) {
+      try {
+        console.log(`🔍 Searching playlists with term: "${term}"`);
+        const response = await spotifyAPI.searchPlaylists(term, limit);
+        
+        if (response.playlists?.items?.length > 0) {
+          console.log(`✅ Found ${response.playlists.items.length} playlists with term: "${term}"`);
+          return response;
+        } else {
+          console.log(`❌ No playlists found with term: "${term}"`);
+        }
+      } catch (error) {
+        console.warn(`⚠️ Search failed for term "${term}":`, error);
+        continue;
+      }
     }
+    
+    // Si llegamos aquí, ningún término funcionó
+    throw new Error(`No playlists found for genre "${genre}" after trying terms: ${terms.join(', ')}`);
   };
 
-  // Función para obtener tracks de las playlists más populares
+  // Función para obtener tracks de las playlists más populares - CORREGIDA
   const getTracksFromPopularPlaylists = async (genre: string): Promise<Track[]> => {
     try {
-      // Buscar las playlists más populares del género
-      const playlists = await findPopularPlaylistsByGenre(genre, 3);
+      console.log(`🎯 Starting track search for genre: ${genre}`);
       
-      if (playlists.length === 0) {
-        throw new Error(`No playlists found for ${genre}`);
+      // Usar la función con fallback
+      const searchResponse = await searchPlaylistsWithFallback(genre, 15);
+      const playlists = searchResponse.playlists?.items || [];
+      
+      // CORRECCIÓN: Filtrar playlists nulas ANTES del map
+      const validPlaylists = playlists
+        .filter((playlist: any) => 
+          playlist !== null && 
+          playlist.id && 
+          playlist.name
+        );
+
+      console.log(`✅ Found ${validPlaylists.length} valid ${genre} playlists:`, 
+        validPlaylists.map((p: any) => ({ name: p.name, id: p.id })));
+
+      if (validPlaylists.length === 0) {
+        throw new Error(`No valid playlists found for ${genre}`);
       }
+
+      // Tomar las playlists más populares (máximo 3)
+      const topPlaylists = validPlaylists.slice(0, 3);
+
+      console.log(`📋 Using ${topPlaylists.length} playlists for ${genre}:`, 
+        topPlaylists.map((p: any) => p.name));
 
       const allTracks: Track[] = [];
       
-      // Obtener tracks de cada playlist (máximo 2 playlists para no exceder límites)
-      for (const playlist of playlists.slice(0, 2)) {
+      // Obtener tracks de cada playlist
+      for (const playlist of topPlaylists) {
         try {
-          console.log(`📋 Getting tracks from playlist: ${playlist.name}`);
-          const tracks = await spotifyAPI.getPlaylistTracks(playlist.id, 15);
-          allTracks.push(...tracks);
+          console.log(`🎵 Getting tracks from playlist: ${playlist.name}`);
+          const tracks = await spotifyAPI.getPlaylistTracks(playlist.id, 12);
+          
+          if (tracks.length > 0) {
+            console.log(`📥 Got ${tracks.length} tracks from "${playlist.name}"`);
+            allTracks.push(...tracks);
+          } else {
+            console.warn(`⚠️ No tracks found in playlist "${playlist.name}"`);
+          }
         } catch (playlistError) {
-          console.warn(`⚠️ Could not get tracks from playlist ${playlist.name}:`, playlistError);
+          console.warn(`❌ Could not get tracks from playlist ${playlist.name}:`, playlistError);
         }
+      }
+
+      if (allTracks.length === 0) {
+        throw new Error(`No tracks could be retrieved from any ${genre} playlists`);
       }
 
       // Eliminar duplicados y ordenar por popularidad
       const uniqueTracks = allTracks.filter((track, index, self) => 
-        index === self.findIndex(t => t.id === track.id)
+        index === self.findIndex(t => t.id === track.id) && track !== null
       );
 
       const popularTracks = uniqueTracks
+        .filter(track => track !== null)
         .sort((a, b) => b.popularity - a.popularity)
         .slice(0, 25);
 
-      console.log(`🎵 ${genre} - Final tracks:`, popularTracks.length);
+      console.log(`🎯 ${genre} - Final unique tracks: ${popularTracks.length}`);
       
       return popularTracks;
     } catch (error) {
-      console.error(`Error getting tracks for ${genre}:`, error);
+      console.error(`❌ Error getting tracks for ${genre}:`, error);
       throw error;
     }
   };
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        console.log('🚀 Starting advanced data fetch...');
-        
-        const [technoData, tranceData] = await Promise.all([
-          getTracksFromPopularPlaylists('techno'),
-          getTracksFromPopularPlaylists('trance')
-        ]);
+  // Función mejorada para fetchData con mejor manejo de errores
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      console.log('🚀 Starting advanced data fetch...');
 
-        console.log('✅ Final data loaded:', {
-          techno: {
-            count: technoData.length,
-            sample: technoData.slice(0, 3).map(t => `${t.name} - ${t.artists[0]?.name} (${t.popularity})`)
-          },
-          trance: {
-            count: tranceData.length,
-            sample: tranceData.slice(0, 3).map(t => `${t.name} - ${t.artists[0]?.name} (${t.popularity})`)
-          }
-        });
+      // Usar Promise.allSettled para manejar errores sin romper todo
+      const results = await Promise.allSettled([
+        getTracksFromPopularPlaylists('techno'),
+        getTracksFromPopularPlaylists('trance')
+      ]);
 
-        setTechnoTracks(technoData);
-        setTranceTracks(tranceData);
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Failed to fetch data from Spotify';
-        setError(errorMessage);
-        console.error('❌ Error in useSpotifyData:', err);
-      } finally {
-        setLoading(false);
+      // Procesar resultados
+      const technoResult = results[0];
+      const tranceResult = results[1];
+
+      let technoData: Track[] = [];
+      let tranceData: Track[] = [];
+      const errors: string[] = [];
+
+      if (technoResult.status === 'fulfilled') {
+        technoData = technoResult.value;
+        console.log(`✅ Techno data loaded: ${technoData.length} tracks`);
+      } else {
+        const errorMsg = technoResult.reason instanceof Error ? technoResult.reason.message : 'Unknown error';
+        errors.push(`Techno: ${errorMsg}`);
+        console.error('❌ Failed to load techno data:', technoResult.reason);
       }
-    };
 
+      if (tranceResult.status === 'fulfilled') {
+        tranceData = tranceResult.value;
+        console.log(`✅ Trance data loaded: ${tranceData.length} tracks`);
+      } else {
+        const errorMsg = tranceResult.reason instanceof Error ? tranceResult.reason.message : 'Unknown error';
+        errors.push(`Trance: ${errorMsg}`);
+        console.error('❌ Failed to load trance data:', tranceResult.reason);
+      }
+
+      // Si ambos fallaron, mostrar error general
+      if (technoData.length === 0 && tranceData.length === 0) {
+        throw new Error(`All genres failed: ${errors.join('; ')}`);
+      }
+
+      // Si al menos uno tiene datos, mostrar advertencia pero continuar
+      if (errors.length > 0) {
+        console.warn('⚠️ Partial data loaded with errors:', errors);
+        setError(`Partial data: ${errors.join('; ')}`);
+      }
+
+      console.log('📊 Final data summary:', {
+        techno: {
+          count: technoData.length,
+          sample: technoData.slice(0, 3).map(t => `${t.name} - ${t.artists[0]?.name} (${t.popularity})`)
+        },
+        trance: {
+          count: tranceData.length,
+          sample: tranceData.slice(0, 3).map(t => `${t.name} - ${t.artists[0]?.name} (${t.popularity})`)
+        }
+      });
+
+      setTechnoTracks(technoData);
+      setTranceTracks(tranceData);
+
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch data from Spotify';
+      setError(errorMessage);
+      console.error('❌ Error in useSpotifyData:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchData();
   }, []);
 
@@ -145,6 +228,7 @@ export const useSpotifyData = () => {
     loading,
     error,
     technoTracks,
-    tranceTracks
+    tranceTracks,
+    refetch: fetchData
   };
 };

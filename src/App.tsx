@@ -1,4 +1,4 @@
-
+import './index.css'
 import Layout from './components/Layout/Layout';
 import GenreOverview from './components/sections/GenreOverview';
 import GenreComparisonChart from './components/charts/GenreComparisonChart';

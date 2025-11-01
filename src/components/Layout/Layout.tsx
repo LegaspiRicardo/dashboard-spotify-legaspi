@@ -6,16 +6,13 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   return (
-    <div className="min-h-screen bg-gray-900">
+    <div className="min-h-screen ">
       <header className="bg-gray-800 border-b border-gray-700">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-white">
+            <h1 className="text-4xl font-bold mx-auto">
               🎵 Electronic Music Dashboard
             </h1>
-            <div className="text-gray-400">
-              Powered by Spotify API
-            </div>
           </div>
         </div>
       </header>

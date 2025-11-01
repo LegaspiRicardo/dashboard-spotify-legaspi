@@ -93,3 +93,26 @@ export interface GenreStats {
   topTracks: Track[];
   totalArtists: number;
 }
+
+// Datos trimestrales para gráficas
+export interface QuarterlyData {
+  quarter: number; // 1, 2, 3, 4
+  year: number;
+  weeks: WeekData[];
+  totalPlays: number;
+  color: string;
+  genre: string;
+}
+
+export interface WeekData {
+  weekNumber: number;
+  plays: number;
+  date: string;
+  trend: 'up' | 'down' | 'stable';
+}
+
+export interface GenreQuarterlyStats {
+  genre: string;
+  quarters: QuarterlyData[];
+  totalYearPlays: number;
+}

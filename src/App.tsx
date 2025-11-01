@@ -4,9 +4,12 @@ import GenreOverview from './components/sections/GenreOverview';
 import GenreComparisonChart from './components/charts/GenreComparisonChart';
 import { useSpotifyData } from './hooks/useSpotifyData';
 import LoadingSpinner from './components/ui/LoadingSpinner';
+import { useQuarterlyData } from './hooks/useQuarterlyData';
+import QuarterlyOverview from './components/charts/QuarterlyOverview';
 
 function App() {
-  const { technoStats, tranceStats, loading, error } = useSpotifyData();
+  const { technoStats, tranceStats, loading, error, technoTracks, tranceTracks } = useSpotifyData();
+  const quarterlyData = useQuarterlyData(technoTracks, tranceTracks);
 
   if (loading) {
     return (
@@ -44,11 +47,15 @@ function App() {
           <p className="text-gray-400">Estadísticas en tiempo real de TECHNO vs TRANCE</p>
         </div>
         
-        <GenreComparisonChart 
-          technoStats={technoStats} 
+        {quarterlyData.length > 0 && (
+          <QuarterlyOverview quarterlyData={quarterlyData} />
+        )}
+
+        <GenreComparisonChart
+          technoStats={technoStats}
           tranceStats={tranceStats}
         />
-        
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <GenreOverview stats={technoStats} />
           <GenreOverview stats={tranceStats} />

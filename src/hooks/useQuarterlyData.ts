@@ -1,6 +1,19 @@
 import { useState, useEffect, useMemo } from 'react';
 import type { GenreQuarterlyStats, Track, QuarterlyData, WeekData } from '../types/spotify';
 
+// Definir interfaz para los colores
+interface QuarterColors {
+    1: string;
+    2: string;
+    3: string;
+    4: string;
+}
+
+interface GenreColors {
+    TECHNO: QuarterColors;
+    TRANCE: QuarterColors;
+}
+
 // Cambia la interfaz para aceptar tracks directamente por género
 export const useQuarterlyData = (technoTracks: Track[], tranceTracks: Track[]) => {
     const [quarterlyData, setQuarterlyData] = useState<GenreQuarterlyStats[]>([]);
@@ -24,12 +37,19 @@ export const useQuarterlyData = (technoTracks: Track[], tranceTracks: Track[]) =
 const generateQuarterlyData = (genreData: { [key: string]: Track[] }): GenreQuarterlyStats[] => {
     const currentYear = new Date().getFullYear();
 
-    // Colores para cada trimestre
-    const quarterColors = {
-        1: '#1DB954', // Spotify green - Q1
-        2: '#3B82F6', // Blue - Q2
-        3: '#8B5CF6', // Purple - Q3  
-        4: '#EF4444'  // Red - Q4
+    const genreColors: GenreColors = {
+        'TECHNO': {
+            1: '#1DB954', // Verde Spotify - Q1
+            2: '#166534' , // Verde muy oscuro - Q4
+            3: '#1DB954', // Verde Spotify - Q1
+            4: '#166534'  // Verde muy oscuro - Q4
+        },
+        'TRANCE': {
+            1: '#9B82F6', // Azul - Q1
+            2: '#9E40DF',  // Azul muy oscuro - Q4
+            3: '#9B82F6', // Azul - Q1
+            4: '#9E40DF'  // Azul muy oscuro - Q4
+        }
     };
 
     return Object.entries(genreData).map(([genre, tracks]) => {
@@ -37,12 +57,16 @@ const generateQuarterlyData = (genreData: { [key: string]: Track[] }): GenreQuar
             const weeklyData = generateWeeklyData(quarter, tracks, genre, currentYear);
             const totalPlays = weeklyData.reduce((sum, week) => sum + week.plays, 0);
 
+            // Corregir el acceso a los colores
+            const genreColorMap = genreColors[genre as keyof GenreColors];
+            const color = genreColorMap ? genreColorMap[quarter as keyof QuarterColors] : '#6B7280';
+
             return {
                 quarter,
                 year: currentYear,
                 weeks: weeklyData,
                 totalPlays,
-                color: quarterColors[quarter as keyof typeof quarterColors],
+                color: color,
                 genre
             };
         });
@@ -55,6 +79,12 @@ const generateQuarterlyData = (genreData: { [key: string]: Track[] }): GenreQuar
             totalYearPlays
         };
     });
+};
+
+// Función de random determinística basada en una semilla
+const deterministicRandom = (seed: number): number => {
+    const x = Math.sin(seed) * 10000;
+    return x - Math.floor(x);
 };
 
 const generateWeeklyData = (quarter: number, tracks: Track[], genre: string, currentYear: number): WeekData[] => {
@@ -72,11 +102,19 @@ const generateWeeklyData = (quarter: number, tracks: Track[], genre: string, cur
     // Base de reproducciones escalada
     const basePlays = Math.floor((avgPopularity / 100) * 15000 * genreFactor);
 
+    // Semilla única basada en género y trimestre para hacer los datos determinísticos
+    const seed = `${genre}-${quarter}-${currentYear}`.split('').reduce((a, b) => {
+        a = ((a << 5) - a) + b.charCodeAt(0);
+        return a & a;
+    }, 0);
+
     let previousPlays = basePlays;
 
     for (let week = 1; week <= weeksInQuarter; week++) {
-        // Variación semanal más realista (±15-25%)
-        const variation = 0.75 + (Math.random() * 0.5);
+        // Variación semanal determinística basada en la semilla + semana
+        const variationSeed = seed + week;
+        const variation = 0.75 + (deterministicRandom(variationSeed) * 0.5);
+        
         let weeklyPlays = Math.floor(basePlays * variation);
 
         // Tendencia de crecimiento/decaimiento por trimestre

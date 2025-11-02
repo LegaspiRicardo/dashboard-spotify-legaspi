@@ -10,25 +10,7 @@ const GenreOverview: React.FC<GenreOverviewProps> = ({ stats }) => {
   return (
     <Card>
       <h2 className="text-2xl font-bold text-white mb-4">{stats.name}</h2>
-      
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <div className="bg-gray-800 p-4 rounded-lg">
-          <p className="text-gray-400 text-5xl">Total de Canciones</p>
-          <p className="text-2xl font-bold text-white">{stats.trackCount}</p>
-        </div>
-        
-        <div className="bg-gray-800 p-4 rounded-lg">
-          <p className="text-gray-400">Popularidad Promedio</p>
-          <p className="text-2xl font-bold text-white">
-            {stats.avgPopularity.toFixed(1)}
-          </p>
-        </div>
-        
-        <div className="bg-gray-800 p-4 rounded-lg">
-          <p className="text-gray-400">Artistas Únicos</p>
-          <p className="text-2xl font-bold text-white">{stats.totalArtists}</p>
-        </div>
-      </div>
+
 
       <div>
         <h3 className="text-xl font-semibold text-white mb-3">Top Canciones</h3>

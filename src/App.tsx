@@ -1,7 +1,7 @@
 import './index.css'
 import Layout from './components/Layout/Layout';
 import GenreOverview from './components/sections/GenreOverview';
-import GenreComparisonChart from './components/charts/GenreComparisonChart';
+//import GenreComparisonChart from './components/charts/GenreComparisonChart';
 import { useSpotifyData } from './hooks/useSpotifyData';
 import LoadingSpinner from './components/ui/LoadingSpinner';
 import { useQuarterlyData } from './hooks/useQuarterlyData';
@@ -43,18 +43,15 @@ function App() {
     <Layout>
       <div className="p-6 space-y-6">
         <div className="text-center">
-          <h1 className="text-4xl font-bold text-white mb-2">Dashboard de Música Electrónica</h1>
-          <p className="text-gray-400">Estadísticas en tiempo real de TECHNO vs TRANCE</p>
+          <h1 className="text-4xl font-bold text-white mb-2">Dashboard Spotify Music</h1>
+          <p className="text-gray-400">Evolución de reproducciones de los géneros TECHNO vs TRANCE</p>
         </div>
         
         {quarterlyData.length > 0 && (
           <QuarterlyOverview quarterlyData={quarterlyData} />
         )}
 
-        <GenreComparisonChart
-          technoStats={technoStats}
-          tranceStats={tranceStats}
-        />
+
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <GenreOverview stats={technoStats} />

@@ -101,13 +101,45 @@ class SpotifyAPI {
     });
   }
 
+  async searchTracksByMarket(query: string, market: string = 'US', limit: number = 50): Promise<SpotifySearchResponse> {
+    return this.makeRequest<SpotifySearchResponse>('/search', {
+      q: query,
+      type: 'track',
+      limit: limit.toString(),
+      market: market
+    });
+  }
+
+  async searchPlaylistsByMarket(query: string, market: string = 'US', limit: number = 20): Promise<any> {
+    return this.makeRequest('/search', {
+      q: query,
+      type: 'playlist',
+      limit: limit.toString(),
+      market: market
+    });
+  }
+
+  async getTracksByGenreAndMarket(genre: string, market: string = 'US', limit: number = 50): Promise<Track[]> {
+    try {
+      console.log(`🎵 Searching "${genre}" tracks for market ${market}`);
+      
+      // Usar búsqueda general en lugar de búsqueda exacta por género
+      const response = await this.searchTracksByMarket(genre, market, limit);
+      
+      console.log(`✅ Found ${response.tracks.items.length} ${genre} tracks for ${market}`);
+      
+      return response.tracks.items;
+    } catch (error) {
+      console.error(`Error fetching ${genre} tracks for market ${market}:`, error);
+      throw error;
+    }
+  }
+
   async searchPlaylistsWithFallback(genre: string, limit: number = 20): Promise<any> {
-    // Términos de búsqueda alternativos para cada género
     const searchTerms: Record<string, string[]> = {
       trance: ['trance', 'trance music', 'trance mix', 'uplifting trance', 'vocal trance'],
       techno: ['techno', 'techno music', 'techno mix'],
       house: ['house', 'house music', 'house mix'],
-      // Agrega más géneros según necesites
     };
 
     const terms = searchTerms[genre] || [genre];
@@ -127,7 +159,6 @@ class SpotifyAPI {
       }
     }
 
-    // Si llegamos aquí, ningún término funcionó
     throw new Error(`No playlists found for genre "${genre}" after trying terms: ${terms.join(', ')}`);
   }
 

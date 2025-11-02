@@ -117,9 +117,6 @@ const generateWeeklyData = (quarter: number, tracks: Track[], genre: string, cur
         
         let weeklyPlays = Math.floor(basePlays * variation);
 
-        // Tendencia de crecimiento/decaimiento por trimestre
-        if (quarter === 1) weeklyPlays = Math.floor(weeklyPlays * 0.9); // Q1 más bajo
-        if (quarter === 4) weeklyPlays = Math.floor(weeklyPlays * 1.1); // Q4 más alto
 
         // Determinar tendencia
         let trend: 'up' | 'down' | 'stable' = 'stable';
